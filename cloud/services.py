@@ -18,13 +18,22 @@ class RequestStatsService:
         return f"{self.pid}-request-time"
 
     def get_request_count(self):
-        return int(self.redis.get(self._get_request_count_key()))
+        try:
+            return int(self.redis.get(self._get_request_count_key()))
+        except TypeError:
+            return 0
 
     def get_request_time(self):
-        return float(self.redis.get(self._get_request_time_key()))
+        try:
+            return float(self.redis.get(self._get_request_time_key()))
+        except TypeError:
+            return 0
 
     def get_average_request_time(self):
-        return self.get_request_time() / self.get_request_count()
+        request_count = self.get_request_count()
+        if request_count:
+            return self.get_request_time() / request_count
+        return 0
 
     def incr_request_count(self):
         self.redis.incr(self._get_request_count_key())
@@ -35,5 +44,7 @@ class RequestStatsService:
 
 def build_request_stats_service(expire_time=DEFAULT_EXPIRE_TIME):
     return RequestStatsService(
-        redis=get_redis_connection("default"), pid=os.getcwd(), expire_time=expire_time,
+        redis=get_redis_connection("default"),
+        pid=str(os.getpid()),
+        expire_time=expire_time,
     )
