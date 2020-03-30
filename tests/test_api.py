@@ -21,7 +21,29 @@ class TestAttackView:
 
 
 class TestStatsView:
-    def test_stats(self, api_client, mocker):
+    def test_stats(self, api_client, mocker, fake_redis):
+        mocker.patch(
+            "cloud.services.get_redis_connection", lambda *args, **kwargs: fake_redis
+        )
+
+        f.VirtualMachineFactory.create()
+        f.VirtualMachineFactory.create()
+
+        url = reverse("api:v1:stats")
+
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert response.data["vm_count"] == 2
+        assert response.data["request_count"] == 0
+        assert isinstance(response.data["average_request_time"], (int, float))
+
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert response.data["vm_count"] == 2
+        assert response.data["request_count"] == 1
+        assert isinstance(response.data["average_request_time"], (int, float))
+
+    def test_stats__when_mocked(self, api_client, mocker):
         request_stats_service_mock = mocker.MagicMock()
         request_stats_service_mock.return_value.get_request_count.return_value = 3
         request_stats_service_mock.return_value.get_average_request_time.return_value = (
